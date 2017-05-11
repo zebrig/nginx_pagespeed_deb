@@ -1,0 +1,59 @@
+#!/bin/bash
+
+DATE=ngx$(date +%Y%m%d-%H%M%S)
+UBUNTU_VERSION="xenial"
+
+##NGINX
+#mainline for beta
+MAINLINE="mainline/"
+#uncomment to use nginx stable
+#MAINLINE=""
+
+##PAGESPEED
+NGX_MOD_BRANCH="stable"
+#NGX_MOD_BRANCH="beta"
+
+
+echo "deb http://nginx.org/packages/${MAINLINE}ubuntu/ $UBUNTU_VERSION nginx
+deb-src http://nginx.org/packages/${MAINLINE}ubuntu/ $UBUNTU_VERSION nginx" > /etc/apt/sources.list.d/nginx.list
+
+wget -qO - http://nginx.org/keys/nginx_signing.key | sudo apt-key add -
+
+apt-get update
+
+mkdir -p ~/$DATE/nginx_source/
+cd ~/$DATE/nginx_source/
+chmod 777 ~/$DATE/nginx_source/
+apt-get source nginx
+apt-get build-dep nginx
+NGX_VER=$(ls -d */)
+cd $NGX_VER
+NGX_PATH=$(pwd)
+
+mkdir -p ~/$DATE/ngx_pagespeed/
+cd ~/$DATE/ngx_pagespeed/
+
+wget https://github.com/pagespeed/ngx_pagespeed/archive/latest-$NGX_MOD_BRANCH.zip
+unzip *.zip
+rm -f ~/$DATE/ngx_pagespeed/*.zip
+
+cd ngx_pagespeed-latest-$NGX_MOD_BRANCH
+NGX_MOD_PATH=$(pwd)
+URL=$(grep wget ./config)
+URL=${URL#*wget}
+URL=${URL%\"*}
+
+wget $URL
+tar -xzvf *.tar.gz
+rm -f ~/$DATE/ngx_pagespeed/ngx_pagespeed-latest-$NGX_MOD_BRANCH/*.tar.gz
+
+
+sed -e 's|--prefix|--add-module='"$NGX_MOD_PATH"' --prefix|g' -i ${NGX_PATH}/debian/rules
+
+cd $NGX_PATH
+
+dpkg-buildpackage -b
+
+cd ..
+
+ls
